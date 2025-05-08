@@ -1,56 +1,49 @@
 import streamlit as st
 from openai import OpenAI
 
-# Show title and description.
-st.title("💬 Chatbot")
+# Título y descripción
+st.title("📄 Generador de Resúmenes Académicos")
 st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+    "Este chatbot usa OpenAI para generar resúmenes claros de textos académicos. "
+    "Pega el texto que deseas resumir y presiona el botón. Necesitas una API Key de OpenAI."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# Ingreso de API key
+openai_api_key = st.text_input("🔑 OpenAI API Key", type="password")
 
-    # Create an OpenAI client.
+# Si no hay API key, no continúa
+if not openai_api_key:
+    st.info("Por favor ingresa tu API key para continuar.", icon="🔒")
+else:
     client = OpenAI(api_key=openai_api_key)
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    # Entrada de texto académico
+    user_text = st.text_area("📚 Pega tu texto académico aquí:", height=300)
 
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # Selector de tipo de resumen
+    summary_type = st.selectbox("📌 Tipo de resumen", ["Resumen breve", "Puntos clave", "Resumen en lenguaje sencillo"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
+    if st.button("📝 Generar resumen") and user_text:
+        with st.spinner("Generando resumen..."):
 
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+            # Instrucción adaptada según el tipo de resumen
+            if summary_type == "Resumen breve":
+                instruction = "Resume el siguiente texto académico en un párrafo claro:"
+            elif summary_type == "Puntos clave":
+                instruction = "Extrae los puntos clave del siguiente texto académico como una lista:"
+            else:
+                instruction = "Explica el siguiente texto académico en lenguaje sencillo para estudiantes de secundaria:"
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
+            # Llamada a la API
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Eres un asistente experto en generar resúmenes académicos."},
+                    {"role": "user", "content": f"{instruction}\n\n{user_text}"}
+                ]
+            )
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            summary = response.choices[0].message.content
+
+        st.markdown("### ✨ Resumen generado:")
+        st.write(summary)
